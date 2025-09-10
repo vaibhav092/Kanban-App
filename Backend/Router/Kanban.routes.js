@@ -5,6 +5,6 @@ const router = Router()
 
 router.post('/boards', createBoard)
 router.get('/boards/:id', getFullBoard)
-router.get("/boards",getAllBoard)
+router.get('/boards', getAllBoard)
 
 export default router

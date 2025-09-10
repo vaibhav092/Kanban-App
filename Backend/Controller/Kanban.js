@@ -44,7 +44,7 @@ export const getFullBoard = async (req, res) => {
 export const getAllBoard = async (req, res) => {
     try {
         const boards = await models.Board.findAll()
-        res.json(boards)
+        res.json({ data: boards })
     } catch (error) {
         console.error('error::GetAllBoard', error)
         res.status(500).json({ message: 'Internal server error' })

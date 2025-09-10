@@ -2,8 +2,10 @@ import express from 'express'
 import { connectDB } from './DB/db.js'
 import dotenv from 'dotenv'
 import cookieParser from 'cookie-parser'
+import cors from 'cors'
 import http from 'http'
 import SocketServer from './Socket/Socket.js'
+import morgan from 'morgan'
 dotenv.config()
 
 const app = express()
@@ -13,6 +15,25 @@ const server = http.createServer(app)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
+app.use(
+    cors({
+        origin: ['http://localhost:5000'],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        credentials: true,
+    })
+)
+app.use(morgan('dev'))
+app.use((req, res, next) => {
+    res.setHeader(
+        'Cache-Control',
+        'no-store, no-cache, must-revalidate, proxy-revalidate'
+    )
+    res.setHeader('Pragma', 'no-cache')
+    res.setHeader('Expires', '0')
+    res.setHeader('Surrogate-Control', 'no-store')
+    next()
+})
 import authRoutes from './Router/Auth.routes.js'
 app.use('/api/auth', authRoutes)
 

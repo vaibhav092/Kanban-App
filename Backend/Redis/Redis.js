@@ -1,5 +1,5 @@
 import dotenv from 'dotenv'
-import {Redis} from"@upstash/redis"
+import { Redis } from '@upstash/redis'
 dotenv.config()
 
 const redis = new Redis({

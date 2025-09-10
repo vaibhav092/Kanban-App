@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { models } from '../DB/db.js'
-import redis  from '../Redis/Redis.js'
+import redis from '../Redis/Redis.js'
 
 const NODE_ENV = 'Dev'
 const JWT_SECRET = process.env.JWT_SECRET
