@@ -50,3 +50,37 @@ export const getAllBoard = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' })
     }
 }
+
+export const createColumn = async (req, res) => {
+    try {
+        const { id: boardId } = req.params
+        const { name, order } = req.body
+
+        // Verify board exists
+        const board = await models.Board.findByPk(boardId)
+        if (!board) {
+            return res.status(404).json({ message: 'Board not found' })
+        }
+
+        const column = await models.Column.create({
+            board_id: boardId,
+            name: name.trim(),
+            order: order || 0
+        })
+
+        return res.status(201).json({ 
+            success: true, 
+            data: {
+                id: column.id,
+                board_id: column.board_id,
+                name: column.name,
+                order: column.order,
+                created_at: column.created_at,
+                updated_at: column.updated_at
+            }
+        })
+    } catch (error) {
+        console.error('Error::CreateColumn', error)
+        res.status(500).json({ message: 'Internal server error' })
+    }
+}
