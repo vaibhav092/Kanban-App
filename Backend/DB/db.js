@@ -19,7 +19,13 @@ export const connectDB = async () => {
         sequelize = new Sequelize(process.env.DATABASE_URL, {
             dialect: 'postgres',
             logging: false,
-        })
+            dialectOptions: {
+              ssl: {
+                require: true,
+                rejectUnauthorized: false, // Supabase needs this
+              },
+            },
+          })
 
         await sequelize.authenticate()
         console.log('Database connected successfully')
