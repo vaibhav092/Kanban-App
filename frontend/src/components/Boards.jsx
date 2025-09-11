@@ -8,6 +8,9 @@ const Boards = () => {
     const [boards, setBoards] = useState([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState(null)
+    const [creating, setCreating] = useState(false)
+    const [showCreateModal, setShowCreateModal] = useState(false)
+    const [newBoardName, setNewBoardName] = useState('')
 
     useEffect(() => {
         let isMounted = true
@@ -32,6 +35,26 @@ const Boards = () => {
             isMounted = false
         }
     }, [])
+
+    const submitCreateBoard = async () => {
+        const name = newBoardName
+        if (!name || !name.trim()) return
+        try {
+            setCreating(true)
+            const res = await kanbanAPI.createBoard({ name: name.trim() })
+            const created = res?.data?.Board
+            if (created) {
+                setBoards((prev) => [created, ...prev])
+                setShowCreateModal(false)
+                setNewBoardName('')
+            }
+        } catch (e) {
+            console.log(e)
+            setError('Failed to create board')
+        } finally {
+            setCreating(false)
+        }
+    }
 
     if (loading) {
         return (
@@ -64,6 +87,13 @@ const Boards = () => {
                             Select a board to open
                         </p>
                     </div>
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        disabled={creating}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {creating ? 'Creating...' : 'Add Board'}
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -95,6 +125,49 @@ const Boards = () => {
                     ))}
                 </div>
             </div>
+
+            {showCreateModal && (
+                <div className="fixed inset-0 z-20 flex items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/60"
+                        onClick={() => (!creating ? setShowCreateModal(false) : null)}
+                    />
+                    <div className="relative z-30 w-full max-w-md rounded-xl border border-neutral-800 bg-neutral-900 p-5 shadow-xl">
+                        <h2 className="text-white text-xl font-semibold">New Board</h2>
+                        <p className="text-neutral-400 text-sm mt-1">Enter a name for your board.</p>
+                        <div className="mt-4">
+                            <input
+                                type="text"
+                                autoFocus
+                                value={newBoardName}
+                                onChange={(e) => setNewBoardName(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') submitCreateBoard()
+                                    if (e.key === 'Escape' && !creating) setShowCreateModal(false)
+                                }}
+                                placeholder="Board name"
+                                className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-2 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                            />
+                        </div>
+                        <div className="mt-5 flex justify-end gap-2">
+                            <button
+                                onClick={() => setShowCreateModal(false)}
+                                disabled={creating}
+                                className="px-4 py-2 rounded-lg border border-neutral-700 text-neutral-300 hover:bg-neutral-800 disabled:opacity-60"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={submitCreateBoard}
+                                disabled={creating || !newBoardName.trim()}
+                                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-60"
+                            >
+                                {creating ? 'Creating…' : 'Create'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

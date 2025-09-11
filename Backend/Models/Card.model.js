@@ -42,7 +42,7 @@ export default (sequelize) => {
     )
 
     Card.associate = (models) => {
-        Card.belongsTo(models.Column, { foreignKey: 'column_id' })
+        Card.belongsTo(models.Column, { foreignKey: 'column_id', as: 'column' })
         Card.belongsTo(models.User, { foreignKey: 'assignee' })
     }
 
