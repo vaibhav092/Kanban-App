@@ -3,6 +3,19 @@ import { models } from '../DB/db.js'
 
 const boardIdToClients = new Map()
 
+const logEvent = async (boardId, eventType, payload, userId = null) => {
+    try {
+        await models.AuditLog.create({
+            board_id: boardId,
+            user_id: userId,
+            event_type: eventType,
+            payload,
+        })
+    } catch (err) {
+        console.error('AuditLog error:', err?.message || err)
+    }
+}
+
 const addClientToBoard = (boardId, ws) => {
     if (!boardIdToClients.has(boardId)) {
         boardIdToClients.set(boardId, new Set())
@@ -87,6 +100,7 @@ const SocketServer = async (server) => {
                             type: 'column:created',
                             data: { boardId, column },
                         })
+                        await logEvent(boardId, 'ColumnCreated', { column })
                     } catch (error) {
                         console.error('Error creating column:', error)
                         ws.send(
@@ -121,6 +135,7 @@ const SocketServer = async (server) => {
                             type: 'column:updated',
                             data: { boardId: column.board_id, column },
                         })
+                        await logEvent(column.board_id, 'ColumnUpdated', { columnId, updates })
                     } catch (error) {
                         console.error('Error updating column:', error)
                         ws.send(
@@ -148,6 +163,7 @@ const SocketServer = async (server) => {
                             type: 'column:deleted',
                             data: { boardId, columnId },
                         })
+                        await logEvent(boardId, 'ColumnDeleted', { columnId })
                     } catch (error) {
                         console.error('Error deleting column:', error)
                         ws.send(
@@ -179,6 +195,7 @@ const SocketServer = async (server) => {
                             type: 'card:created',
                             data: { boardId: column.board_id, card },
                         })
+                        await logEvent(column.board_id, 'CardCreated', { card })
                     } catch (error) {
                         console.error('Error creating card:', error)
                         ws.send(
@@ -207,6 +224,7 @@ const SocketServer = async (server) => {
                             type: 'card:updated',
                             data: { boardId: card.column.board_id, card },
                         })
+                        await logEvent(card.column.board_id, 'CardUpdated', { cardId, updates })
                     } catch (error) {
                         console.error('Error updating card:', error)
                         ws.send(
@@ -236,6 +254,7 @@ const SocketServer = async (server) => {
                             type: 'card:deleted',
                             data: { boardId, cardId },
                         })
+                        await logEvent(boardId, 'CardDeleted', { cardId })
                     } catch (error) {
                         console.error('Error deleting card:', error)
                         ws.send(
@@ -282,6 +301,7 @@ const SocketServer = async (server) => {
                                 newColumnId,
                             },
                         })
+                        await logEvent(card.column.board_id, 'CardMoved', { cardId, oldColumnId, newColumnId, newOrder })
                     } catch (error) {
                         console.error('Error moving card:', error)
                         ws.send(

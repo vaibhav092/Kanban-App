@@ -32,6 +32,9 @@ export default function KanbanBoard() {
     const [newCardTitle, setNewCardTitle] = useState('')
     const [newCardDescription, setNewCardDescription] = useState('')
 
+    const [auditLogs, setAuditLogs] = useState([])
+    const [auditLoading, setAuditLoading] = useState(false)
+
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -55,8 +58,24 @@ export default function KanbanBoard() {
         }
     }
 
+    async function fetchAuditLogs(id) {
+        try {
+            setAuditLoading(true)
+            const resp = await kanbanAPI.getAudit(id, 3)
+            const logs = Array.isArray(resp?.data?.data) ? resp.data.data.slice(0, 5) : []
+            setAuditLogs(logs)
+        } catch (err) {
+            console.error('Error fetching audit logs:', err)
+        } finally {
+            setAuditLoading(false)
+        }
+    }
+
     useEffect(() => {
-        if (boardId) fetchBoardData(boardId)
+        if (boardId) {
+            fetchBoardData(boardId)
+            fetchAuditLogs(boardId)
+        }
     }, [boardId])
 
     useEffect(() => {
@@ -489,6 +508,41 @@ export default function KanbanBoard() {
                     </div>
                 </div>
             )}
+
+            {/* Audit Log (minimal) */}
+            <div className="fixed bottom-4 right-4 w-full max-w-md bg-neutral-900/95 border border-neutral-800 rounded-xl shadow-xl p-4 backdrop-blur z-40">
+                <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-white font-semibold text-sm">Recent activity</h3>
+                    {auditLoading && (
+                        <span className="text-xs text-neutral-400">Loading…</span>
+                    )}
+                </div>
+                <div className="space-y-2 max-h-64 overflow-auto pr-1">
+                    {(auditLogs || []).map((log) => (
+                        <div key={log.id} className="text-xs text-neutral-300 bg-neutral-800/60 border border-neutral-700 rounded-lg p-2">
+                            <div className="flex items-center justify-between">
+                                <span className="font-medium text-white/90">
+                                    {log.event_type === 'CardMoved' ? 'Card moved' : log.event_type}
+                                </span>
+                                <span className="text-[10px] text-neutral-400">
+                                    {new Date(log.created_at || log.createdAt).toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+                    ))}
+                    {!auditLoading && auditLogs.length === 0 && (
+                        <div className="text-xs text-neutral-500">No recent activity</div>
+                    )}
+                </div>
+                <div className="mt-3 flex justify-end">
+                    <button
+                        onClick={() => fetchAuditLogs(boardId)}
+                        className="text-xs px-3 py-1 rounded-md bg-neutral-800 text-white border border-neutral-700 hover:bg-neutral-700"
+                    >
+                        Refresh
+                    </button>
+                </div>
+            </div>
         </div>
     )
 }

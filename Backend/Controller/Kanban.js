@@ -51,6 +51,22 @@ export const getAllBoard = async (req, res) => {
     }
 }
 
+export const getAuditLogs = async (req, res) => {
+    try {
+        const boardId = req.params.id
+        const limit = Number.parseInt(req.query.limit, 10)
+        const logs = await models.AuditLog.findAll({
+            where: { board_id: boardId },
+            order: [['created_at', 'DESC']],
+            limit: Number.isFinite(limit) && limit > 0 ? limit : 50,
+        })
+        return res.status(200).json({ success: true, data: logs })
+    } catch (error) {
+        console.error('Error::GetAuditLogs', error)
+        res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
 export const createColumn = async (req, res) => {
     try {
         const { id: boardId } = req.params

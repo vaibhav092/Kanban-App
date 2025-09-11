@@ -83,6 +83,8 @@ export const kanbanAPI = {
     createBoard: (boardData) => api.post('/api/kanban/boards', boardData),
     createColumn: (boardId, name, order) =>
         api.post(`/api/kanban/boards/${boardId}/columns`, { name, order }),
+    getAudit: (boardId, limit = 50) =>
+        api.get(`/api/kanban/boards/${boardId}/audit`, { params: { limit } }),
 }
 
 export default api

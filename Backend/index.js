@@ -6,11 +6,16 @@ import cors from 'cors'
 import http from 'http'
 import SocketServer from './Socket/Socket.js'
 import morgan from 'morgan'
+import { fileURLToPath } from 'url'
+import path from 'path'
 dotenv.config()
 
 const app = express()
 const port = 3000
 const server = http.createServer(app)
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
@@ -40,6 +45,13 @@ app.use('/api/auth', authRoutes)
 import KanbanRoutes from './Router/Kanban.routes.js'
 import { verifyToken } from './Middleware/Auth.js'
 app.use('/api/kanban', verifyToken, KanbanRoutes)
+
+app.use(express.static(path.join(__dirname, 'public')))
+
+app.get(/.*/, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'dist/ndex.html'))
+  })
+  
 
 server.listen(port, async () => {
     try {
