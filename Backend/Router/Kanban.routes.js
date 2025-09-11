@@ -1,5 +1,10 @@
 import { Router } from 'express'
-import { createBoard, getAllBoard, getFullBoard, createColumn } from '../Controller/Kanban.js'
+import {
+    createBoard,
+    getAllBoard,
+    getFullBoard,
+    createColumn,
+} from '../Controller/Kanban.js'
 
 const router = Router()
 

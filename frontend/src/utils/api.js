@@ -28,24 +28,41 @@ api.interceptors.request.use(
     }
 )
 
+let isRefreshing = false
+let refreshPromise = null
+
 api.interceptors.response.use(
-    (response) => {
-        return response
-    },
+    (response) => response,
     async (error) => {
         const originalRequest = error.config
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (
+            error.response?.status === 401 &&
+            !originalRequest._retry &&
+            originalRequest.url !== '/api/auth/refresh' &&
+            originalRequest.url !== '/api/auth/isLogin'
+        ) {
             originalRequest._retry = true
 
-            try {
-                await api.post('/api/auth/refresh')
-
-                return api(originalRequest)
-            } catch (refreshError) {
-                window.location.href = '/login'
-                return Promise.reject(refreshError)
+            if (!isRefreshing) {
+                isRefreshing = true
+                refreshPromise = api
+                    .post('/api/auth/refresh')
+                    .then(() => {
+                        isRefreshing = false
+                    })
+                    .catch((refreshError) => {
+                        isRefreshing = false
+                        window.location.href = '/login'
+                        throw refreshError
+                    })
             }
+
+            return refreshPromise.then(() => api(originalRequest))
+        }
+
+        if (originalRequest.url === '/api/auth/refresh') {
+            window.location.href = '/login'
         }
 
         return Promise.reject(error)
@@ -64,6 +81,8 @@ export const kanbanAPI = {
     AllgetBoards: () => api.get('/api/kanban/boards'),
     getBoard: (boardId) => api.get(`/api/kanban/boards/${boardId}`),
     createBoard: (boardData) => api.post('/api/kanban/boards', boardData),
+    createColumn: (boardId, name, order) =>
+        api.post(`/api/kanban/boards/${boardId}/columns`, { name, order }),
 }
 
 export default api

@@ -56,7 +56,6 @@ export const createColumn = async (req, res) => {
         const { id: boardId } = req.params
         const { name, order } = req.body
 
-        // Verify board exists
         const board = await models.Board.findByPk(boardId)
         if (!board) {
             return res.status(404).json({ message: 'Board not found' })
@@ -65,19 +64,19 @@ export const createColumn = async (req, res) => {
         const column = await models.Column.create({
             board_id: boardId,
             name: name.trim(),
-            order: order || 0
+            order: order || 0,
         })
 
-        return res.status(201).json({ 
-            success: true, 
+        return res.status(201).json({
+            success: true,
             data: {
                 id: column.id,
                 board_id: column.board_id,
                 name: column.name,
                 order: column.order,
                 created_at: column.created_at,
-                updated_at: column.updated_at
-            }
+                updated_at: column.updated_at,
+            },
         })
     } catch (error) {
         console.error('Error::CreateColumn', error)

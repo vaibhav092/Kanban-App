@@ -3,14 +3,30 @@ import { BrowserRouter, Routes, Route } from 'react-router'
 import Boards from './components/Boards.jsx'
 import KanbanBoard from './components/KanbanBoard.jsx'
 import Login from './components/Login.jsx'
+import ProtectedRoute from './components/ProtectedRoute.jsx'
 
 function App() {
     return (
         <BrowserRouter>
             <Routes>
-                <Route path="/" element={<Boards />}></Route>
-                <Route path="/board/:boardId" element={<KanbanBoard />}></Route>
-                <Route path="/login" element={<Login />}></Route>
+                <Route path="/login" element={<Login />} />
+
+                <Route
+                    path="/"
+                    element={
+                        <ProtectedRoute>
+                            <Boards />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/board/:boardId"
+                    element={
+                        <ProtectedRoute>
+                            <KanbanBoard />
+                        </ProtectedRoute>
+                    }
+                />
             </Routes>
         </BrowserRouter>
     )

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { kanbanAPI } from '../utils/api'
+import LogoutButton from './LogoutButton'
 
 const Boards = () => {
     const navigate = useNavigate()
@@ -15,18 +16,10 @@ const Boards = () => {
                 setLoading(true)
                 const res = await kanbanAPI.AllgetBoards()
                 if (isMounted) {
-                    const payload = res?.data
-                    const normalized = Array.isArray(payload)
-                        ? payload
-                        : Array.isArray(payload?.boards)
-                          ? payload.boards
-                          : Array.isArray(payload?.data)
-                            ? payload.data
-                            : Array.isArray(payload?.AllBoards)
-                              ? payload.AllBoards
-                              : []
+                    const normalized = Array.isArray(res?.data?.data)
+                        ? res.data.data
+                        : []
                     setBoards(normalized)
-                    console.log(payload)
                 }
             } catch (e) {
                 console.log(e)
@@ -42,29 +35,34 @@ const Boards = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-neutral-50">
-                <div className="text-neutral-600">Loading boards...</div>
+            <div className="min-h-screen flex items-center justify-center bg-neutral-950">
+                <div className="text-neutral-400">Loading boards...</div>
             </div>
         )
     }
 
     if (error) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-red-50">
-                <div className="text-red-600">{error}</div>
+            <div className="min-h-screen flex items-center justify-center bg-neutral-950">
+                <div className="text-red-400">{error}</div>
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <div className="min-h-screen bg-neutral-950">
+            <div className="fixed top-4 right-4 z-10">
+                <LogoutButton />
+            </div>
             <div className="max-w-7xl mx-auto p-6">
                 <div className="mb-8 flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">
+                        <h1 className="text-3xl font-bold text-white">
                             Boards
                         </h1>
-                        <p className="text-gray-600">Select a board to open</p>
+                        <p className="text-neutral-400">
+                            Select a board to open
+                        </p>
                     </div>
                 </div>
 
@@ -73,22 +71,22 @@ const Boards = () => {
                         <button
                             key={board.id || board._id}
                             onClick={() => navigate(`/board/${board.id}`)}
-                            className="group text-left p-5 rounded-xl bg-white/70 backdrop-blur border border-white/40 shadow hover:shadow-lg transition-shadow"
+                            className="group text-left p-5 rounded-xl bg-neutral-900 border border-neutral-800 shadow hover:shadow-lg hover:border-neutral-700 transition-all"
                         >
                             <div className="flex items-start justify-between">
                                 <div>
-                                    <div className="text-lg font-semibold text-gray-900">
+                                    <div className="text-lg font-semibold text-white">
                                         {board.name}
                                     </div>
                                     {board.description && (
-                                        <div className="mt-1 text-sm text-gray-600 line-clamp-2">
+                                        <div className="mt-1 text-sm text-neutral-400 line-clamp-2">
                                             {board.description}
                                         </div>
                                     )}
                                 </div>
-                                <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
+                                <div className="w-10 h-10 rounded-lg bg-blue-900/40 text-blue-300 flex items-center justify-center font-bold">
                                     {board.name
-                                        .toString()
+                                        ?.toString()
                                         .charAt(0)
                                         .toUpperCase()}
                                 </div>
