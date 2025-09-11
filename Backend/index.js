@@ -11,7 +11,7 @@ import path from 'path'
 dotenv.config()
 
 const app = express()
-const serverPort = 3000
+const serverPort = process.env.PORT ? Number(process.env.PORT) : 3000
 const server = http.createServer(app)
 
 const __filename = fileURLToPath(import.meta.url)
@@ -49,18 +49,22 @@ app.use('/api/kanban', verifyToken, KanbanRoutes)
 app.use(express.static(path.join(__dirname, 'public')))
 
 app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'dist/ndex.html'))
+    res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
   
 
 server.listen(serverPort, async () => {
     try {
         await connectDB()
-        await SocketServer(server)
-        console.log(`Server is running on port ${serverPort}`)
-        console.log(process.env.UPSTASH_REDIS_REST_URL)
     } catch (error) {
-        console.log(error)
-        throw new Error('Error starting the server')
+        console.error('Continuing without database. Reason:', error?.message || error)
     }
+
+    try {
+        await SocketServer(server)
+    } catch (error) {
+        console.error('Failed to initialize WebSocket server:', error?.message || error)
+    }
+
+    console.log(`Server is running on port ${serverPort}`)
 })
