@@ -11,7 +11,7 @@ import path from 'path'
 dotenv.config()
 
 const app = express()
-const serverPort = 3001
+const serverPort = 3000
 const server = http.createServer(app)
 
 const __filename = fileURLToPath(import.meta.url)
