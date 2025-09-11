@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken'
 import { models } from '../DB/db.js'
 import redis from '../Redis/Redis.js'
 
-const NODE_ENV = 'Dev'
+const NODE_ENV = process.env.NODE_ENV || 'development'
 const JWT_SECRET = process.env.JWT_SECRET
 const isProd = NODE_ENV === 'production'
 
@@ -35,12 +35,14 @@ const deleteRefreshToken = async (userId) => {
 const accessTokenCookieOptions = {
     httpOnly: true,
     secure: isProd,
-    maxAge: 300 * 60 * 1000,
+    sameSite: isProd ? 'none' : 'lax',
+    maxAge: 15 * 60 * 1000,
 }
 
 const refreshTokenCookieOptions = {
     httpOnly: true,
     secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000,
 }
 

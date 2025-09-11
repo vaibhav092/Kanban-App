@@ -11,7 +11,7 @@ import path from 'path'
 dotenv.config()
 
 const app = express()
-const serverPort = process.env.PORT ? Number(process.env.PORT) : 3000
+const serverPort = 3000
 const server = http.createServer(app)
 
 const __filename = fileURLToPath(import.meta.url)
@@ -22,7 +22,7 @@ app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
 app.use(
     cors({
-        origin: ['http://localhost:5000'],
+        origin: (origin, callback) => callback(null, true),
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
         credentials: true,
@@ -43,8 +43,7 @@ import authRoutes from './Router/Auth.routes.js'
 app.use('/api/auth', authRoutes)
 
 import KanbanRoutes from './Router/Kanban.routes.js'
-import { verifyToken } from './Middleware/Auth.js'
-app.use('/api/kanban',  KanbanRoutes)
+app.use('/api/kanban', KanbanRoutes)
 
 app.use(express.static(path.join(__dirname, 'public')))
 
@@ -52,19 +51,38 @@ app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
   
-
-server.listen(serverPort, async () => {
+const startServer = async () => {
     try {
+        console.log('Connecting to database...')
         await connectDB()
-    } catch (error) {
-        console.error('Continuing without database. Reason:', error?.message || error)
-    }
+        console.log('Database connected successfully')
 
-    try {
+        console.log('Starting WebSocket server...')
         await SocketServer(server)
-    } catch (error) {
-        console.error('Failed to initialize WebSocket server:', error?.message || error)
+        console.log('WebSocket server started!')
+    } catch (err) {
+        console.error('Startup error:', err?.message || err)
     }
 
-    console.log(`Server is running on port ${serverPort}`)
-})
+    server.listen(serverPort, () => {
+        console.log(`Server is running on port ${serverPort}`)
+    })
+
+    setInterval(() => {
+        console.log('Heartbeat: server is alive')
+    }, 30000)
+}
+
+const shutdown = () => {
+    console.log('Received shutdown signal. Closing server...')
+    server.close(() => {
+        console.log('HTTP server closed.')
+        process.exit(0)
+    })
+    setTimeout(() => process.exit(0), 5000).unref()
+}
+
+process.on('SIGTERM', shutdown)
+process.on('SIGINT', shutdown)
+
+startServer()

@@ -2,9 +2,7 @@ import axios from 'axios'
 
 const resolveApiBaseUrl = () => {
     if (typeof window !== 'undefined') {
-        const host = window.location.hostname
-        const protocol = window.location.protocol
-        return `${protocol}//${host}:3000`
+        return ''
     }
     return 'http://localhost:3000'
 }
