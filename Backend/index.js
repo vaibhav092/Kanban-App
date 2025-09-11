@@ -44,7 +44,7 @@ app.use('/api/auth', authRoutes)
 
 import KanbanRoutes from './Router/Kanban.routes.js'
 import { verifyToken } from './Middleware/Auth.js'
-app.use('/api/kanban', verifyToken, KanbanRoutes)
+app.use('/api/kanban',  KanbanRoutes)
 
 app.use(express.static(path.join(__dirname, 'public')))
 

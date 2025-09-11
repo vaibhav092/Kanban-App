@@ -14,17 +14,13 @@ function App() {
                 <Route
                     path="/"
                     element={
-                        <ProtectedRoute>
                             <Boards />
-                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/board/:boardId"
                     element={
-                        <ProtectedRoute>
                             <KanbanBoard />
-                        </ProtectedRoute>
                     }
                 />
             </Routes>
