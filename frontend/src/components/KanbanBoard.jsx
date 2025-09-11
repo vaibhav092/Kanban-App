@@ -17,23 +17,23 @@ import Card from './Card.jsx'
 
 export default function KanbanBoard() {
     const { boardId } = useParams()
-    const [boardData, setBoardData] = useState(null)
-    const [activeCard, setActiveCard] = useState(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState(null)
-    const [onlineCount, setOnlineCount] = useState(0)
-    const wsInitializedRef = useRef(false)
+    const [board, setBoard] = useState(null)
+    const [draggingCard, setDraggingCard] = useState(null)
+    const [isLoading, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState(null)
+    const [onlineUsers, setOnlineUsers] = useState(0)
+    const wsReadyRef = useRef(false)
 
-    const [showAddColumn, setShowAddColumn] = useState(false)
-    const [newColumnName, setNewColumnName] = useState('')
+    const [showCreateColumn, setShowCreateColumn] = useState(false)
+    const [pendingColumnName, setPendingColumnName] = useState('')
 
-    const [showAddCard, setShowAddCard] = useState(false)
-    const [targetColumnId, setTargetColumnId] = useState(null)
-    const [newCardTitle, setNewCardTitle] = useState('')
-    const [newCardDescription, setNewCardDescription] = useState('')
+    const [showCreateCard, setShowCreateCard] = useState(false)
+    const [targetListId, setTargetListId] = useState(null)
+    const [pendingCardTitle, setPendingCardTitle] = useState('')
+    const [pendingCardDescription, setPendingCardDescription] = useState('')
 
-    const [auditLogs, setAuditLogs] = useState([])
-    const [auditLoading, setAuditLoading] = useState(false)
+    const [recentEvents, setRecentEvents] = useState([])
+    const [isAuditLoading, setIsAuditLoading] = useState(false)
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -44,37 +44,37 @@ export default function KanbanBoard() {
         useSensor(KeyboardSensor)
     )
 
-    async function fetchBoardData(id) {
+    async function loadBoard(id) {
         try {
-            setLoading(true)
+            setIsLoading(true)
             const resp = await kanbanAPI.getBoard(id)
             const data = await resp.data
-            setBoardData(data.board)
+            setBoard(data.board)
         } catch (err) {
             console.error('Error fetching board:', err)
-            setError('Failed to load board')
+            setLoadError('Failed to load board')
         } finally {
-            setLoading(false)
+            setIsLoading(false)
         }
     }
 
-    async function fetchAuditLogs(id) {
+    async function loadRecentEvents(id) {
         try {
-            setAuditLoading(true)
+            setIsAuditLoading(true)
             const resp = await kanbanAPI.getAudit(id, 3)
             const logs = Array.isArray(resp?.data?.data) ? resp.data.data.slice(0, 5) : []
-            setAuditLogs(logs)
+            setRecentEvents(logs)
         } catch (err) {
             console.error('Error fetching audit logs:', err)
         } finally {
-            setAuditLoading(false)
+            setIsAuditLoading(false)
         }
     }
 
     useEffect(() => {
         if (boardId) {
-            fetchBoardData(boardId)
-            fetchAuditLogs(boardId)
+            loadBoard(boardId)
+            loadRecentEvents(boardId)
         }
     }, [boardId])
 
@@ -84,24 +84,40 @@ export default function KanbanBoard() {
         let isMounted = true
         const setupWebSocket = async () => {
             try {
-                if (!wsInitializedRef.current) {
+                if (!wsReadyRef.current) {
                     await websocketService.connect()
-                    wsInitializedRef.current = true
+                    wsReadyRef.current = true
                 }
-                
                 websocketService.send({ type: 'board:join', data: { boardId } })
-                
+                const pushAudit = (eventType, dedupeKey) => {
+                    setRecentEvents(prev => {
+                        const nowIso = new Date().toISOString()
+                        const wsId = `ws-${nowIso}-${Math.random()}`
+                        const entry = {
+                            id: wsId,
+                            event_type: eventType,
+                            created_at: nowIso,
+                            _k: dedupeKey,
+                        }
+                        const existing = (prev || [])
+                        if (existing.some(e => e?._k && dedupeKey && e._k === dedupeKey)) {
+                            return existing
+                        }
+                        const next = [entry, ...existing]
+                        return next.slice(0, 3)
+                    })
+                }
                 const onJoined = async () => {
                     if (!isMounted) return
-                    await fetchBoardData(boardId)
+                    await loadBoard(boardId)
                 }
                 const onOnlineCount = (data) => {
                     if (!isMounted) return
-                    if (data?.boardId === boardId) setOnlineCount(data.count || 0)
+                    if (data?.boardId === boardId) setOnlineUsers(data.count || 0)
                 }
                 const onColumnCreated = (data) => {
                     if (!isMounted) return
-                    setBoardData(prev => {
+                    setBoard(prev => {
                         if (!prev) return prev
                         const exists = prev.Columns.some(c => c.id === data.column.id)
                         if (exists) return prev
@@ -110,10 +126,11 @@ export default function KanbanBoard() {
                             Columns: [...prev.Columns, data.column]
                         }
                     })
+                    pushAudit('ColumnCreated', `ColumnCreated:${data?.column?.id}`)
                 }
                 const onColumnUpdated = (data) => {
                     if (!isMounted) return
-                    setBoardData(prev => {
+                    setBoard(prev => {
                         if (!prev) return prev
                         return {
                             ...prev,
@@ -122,20 +139,22 @@ export default function KanbanBoard() {
                             )
                         }
                     })
+                    pushAudit('ColumnUpdated', `ColumnUpdated:${data?.column?.id}`)
                 }
                 const onColumnDeleted = (data) => {
                     if (!isMounted) return
-                    setBoardData(prev => {
+                    setBoard(prev => {
                         if (!prev) return prev
                         return {
                             ...prev,
                             Columns: prev.Columns.filter(col => col.id !== data.columnId)
                         }
                     })
+                    pushAudit('ColumnDeleted', `ColumnDeleted:${data?.columnId}`)
                 }
                 const onCardCreated = (data) => {
                     if (!isMounted) return
-                    setBoardData(prev => {
+                    setBoard(prev => {
                         if (!prev) return prev
                         return {
                             ...prev,
@@ -152,10 +171,11 @@ export default function KanbanBoard() {
                             })
                         }
                     })
+                    pushAudit('CardCreated', `CardCreated:${data?.card?.id}`)
                 }
                 const onCardUpdated = (data) => {
                     if (!isMounted) return
-                    setBoardData(prev => {
+                    setBoard(prev => {
                         if (!prev) return prev
                         return {
                             ...prev,
@@ -167,10 +187,11 @@ export default function KanbanBoard() {
                             }))
                         }
                     })
+                    pushAudit('CardUpdated', `CardUpdated:${data?.card?.id}`)
                 }
                 const onCardDeleted = (data) => {
                     if (!isMounted) return
-                    setBoardData(prev => {
+                    setBoard(prev => {
                         if (!prev) return prev
                         return {
                             ...prev,
@@ -180,10 +201,11 @@ export default function KanbanBoard() {
                             }))
                         }
                     })
+                    pushAudit('CardDeleted', `CardDeleted:${data?.cardId}`)
                 }
                 const onCardMoved = (data) => {
                     if (!isMounted) return
-                    setBoardData(prev => {
+                    setBoard(prev => {
                         if (!prev) return prev
                         const newColumns = prev.Columns.map(col => {
                             if (col.id === data.oldColumnId) {
@@ -205,11 +227,12 @@ export default function KanbanBoard() {
                         })
                         return { ...prev, Columns: newColumns }
                     })
+                    pushAudit('CardMoved', `CardMoved:${data?.card?.id}:${data?.oldColumnId}->${data?.newColumnId}:${data?.card?.order}`)
                 }
                 const onWsError = (data) => {
                     if (!isMounted) return
                     console.error('WebSocket error:', data?.message || data)
-                    setError((data && data.message) || 'Realtime error')
+                    setLoadError((data && data.message) || 'Realtime error')
                 }
 
                 websocketService.on('joined', onJoined)
@@ -250,12 +273,12 @@ export default function KanbanBoard() {
     const handleDragStart = (event) => {
         const { active } = event
         const card = findCardById(active.id)
-        setActiveCard(card)
+        setDraggingCard(card)
     }
 
     const handleDragEnd = (event) => {
         const { active, over } = event
-        setActiveCard(null)
+        setDraggingCard(null)
 
         if (!over) return
 
@@ -283,7 +306,7 @@ export default function KanbanBoard() {
             const clampedIndex = Math.max(0, Math.min(without.length, newOrder))
             without.splice(clampedIndex, 0, { ...draggedCard, order: clampedIndex })
 
-            setBoardData(prev => ({
+            setBoard(prev => ({
                 ...prev,
                 Columns: prev.Columns.map(col => col.id === fromColumn.id ? { ...col, Cards: without } : col)
             }))
@@ -293,7 +316,7 @@ export default function KanbanBoard() {
         }
 
         const crossNewOrder = targetCards.length
-        setBoardData(prev => {
+        setBoard(prev => {
             const newColumns = prev.Columns.map(col => {
                 if (col.id === fromColumn.id) {
                     return {
@@ -316,18 +339,18 @@ export default function KanbanBoard() {
     }
 
     const handleOpenAddCard = (columnId) => {
-        setTargetColumnId(columnId)
-        setNewCardTitle('')
-        setNewCardDescription('')
-        setShowAddCard(true)
+        setTargetListId(columnId)
+        setPendingCardTitle('')
+        setPendingCardDescription('')
+        setShowCreateCard(true)
     }
 
     const handleConfirmAddCard = () => {
-        const title = newCardTitle.trim()
-        if (!title || !targetColumnId) return setShowAddCard(false)
-        const order = getColumnCards(targetColumnId).length
-        websocketService.createCard(targetColumnId, title, newCardDescription || '', order)
-        setShowAddCard(false)
+        const title = pendingCardTitle.trim()
+        if (!title || !targetListId) return setShowCreateCard(false)
+        const order = getColumnCards(targetListId).length
+        websocketService.createCard(targetListId, title, pendingCardDescription || '', order)
+        setShowCreateCard(false)
     }
 
     const handleDeleteCard = (cardId) => {
@@ -336,16 +359,16 @@ export default function KanbanBoard() {
     }
 
     const handleOpenAddColumn = () => {
-        setNewColumnName('')
-        setShowAddColumn(true)
+        setPendingColumnName('')
+        setShowCreateColumn(true)
     }
 
     const handleConfirmAddColumn = () => {
-        const name = newColumnName.trim()
-        if (!name) return setShowAddColumn(false)
-        const order = boardData?.Columns?.length || 0
+        const name = pendingColumnName.trim()
+        if (!name) return setShowCreateColumn(false)
+        const order = board?.Columns?.length || 0
         websocketService.createColumn(boardId, name, order)
-        setShowAddColumn(false)
+        setShowCreateColumn(false)
     }
 
     const handleDeleteColumn = (columnId) => {
@@ -354,8 +377,8 @@ export default function KanbanBoard() {
     }
 
     const findCardById = (id) => {
-        if (!boardData) return null
-        for (const column of boardData.Columns) {
+        if (!board) return null
+        for (const column of board.Columns) {
             const card = (column.Cards || []).find(card => card.id === id)
             if (card) return card
         }
@@ -363,15 +386,15 @@ export default function KanbanBoard() {
     }
 
     const findColumnByCardId = (cardId) => {
-        if (!boardData) return null
-        return boardData.Columns.find(column => 
+        if (!board) return null
+        return board.Columns.find(column => 
             (column.Cards || []).some(card => card.id === cardId)
         )
     }
 
     const findColumnById = (columnId) => {
-        if (!boardData) return null
-        return boardData.Columns.find(column => column.id === columnId)
+        if (!board) return null
+        return board.Columns.find(column => column.id === columnId)
     }
 
     const getColumnCards = (columnId) => {
@@ -379,7 +402,7 @@ export default function KanbanBoard() {
         return column ? (column.Cards || []) : []
     }
 
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-neutral-950 text-white">
                 <div className="text-center">
@@ -390,12 +413,12 @@ export default function KanbanBoard() {
         )
     }
 
-    if (error) {
+    if (loadError) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-neutral-950 text-white">
                 <div className="text-center">
                     <div className="text-red-500 text-xl mb-4">❌</div>
-                    <p className="text-red-400">{error}</p>
+                    <p className="text-red-400">{loadError}</p>
                     <button 
                         onClick={() => window.location.reload()} 
                         className="mt-4 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-white transition-colors"
@@ -407,7 +430,7 @@ export default function KanbanBoard() {
         )
     }
 
-    if (!boardData) {
+    if (!board) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-neutral-950 text-white">
                 <p>Board not found</p>
@@ -415,17 +438,16 @@ export default function KanbanBoard() {
         )
     }
 
-    const sortedColumns = [...boardData.Columns].sort((a, b) => (a.order || 0) - (b.order || 0))
+    const sortedColumns = [...board.Columns].sort((a, b) => (a.order || 0) - (b.order || 0))
 
     return (
         <div className="min-h-screen p-4 bg-neutral-950 text-white">
             <div className="max-w-7xl mx-auto">
-                {/* Header */}
                 <div className="mb-6">
                     <div className="flex items-center justify-between mb-4">
-                        <h1 className="text-3xl font-bold text-white">{boardData.name}</h1>
+                        <h1 className="text-3xl font-bold text-white">{board.name}</h1>
                         <div className="flex items-center gap-3">
-                            <span className="text-sm text-neutral-300 bg-neutral-800 px-3 py-1 rounded-full">Online: {onlineCount}</span>
+                            <span className="text-sm text-neutral-300 bg-neutral-800 px-3 py-1 rounded-full">Online: {onlineUsers}</span>
                             <button 
                                 onClick={handleOpenAddColumn}
                                 className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-white transition-colors"
@@ -436,7 +458,6 @@ export default function KanbanBoard() {
                     </div>
                 </div>
 
-                {/* Board */}
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -457,68 +478,65 @@ export default function KanbanBoard() {
                     </div>
 
                     <DragOverlay>
-                        {activeCard ? <Card card={activeCard} isDragging={true} onDeleteCard={handleDeleteCard} /> : null}
+                        {draggingCard ? <Card card={draggingCard} isDragging={true} onDeleteCard={handleDeleteCard} /> : null}
                     </DragOverlay>
                 </DndContext>
             </div>
 
-            {/* Add Column Modal */}
-            {showAddColumn && (
+            {showCreateColumn && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
                     <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 w-full max-w-sm">
                         <h2 className="text-white text-lg font-semibold mb-4">New Column</h2>
                         <input
                             autoFocus
-                            value={newColumnName}
-                            onChange={(e) => setNewColumnName(e.target.value)}
+                            value={pendingColumnName}
+                            onChange={(e) => setPendingColumnName(e.target.value)}
                             placeholder="Column name"
                             className="w-full bg-neutral-800 text-white placeholder-neutral-400 border border-neutral-700 rounded-lg px-3 py-2 mb-4 focus:outline-none focus:border-blue-500"
                         />
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => setShowAddColumn(false)} className="px-3 py-2 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700">Cancel</button>
+                            <button onClick={() => setShowCreateColumn(false)} className="px-3 py-2 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700">Cancel</button>
                             <button onClick={handleConfirmAddColumn} className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Create</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Add Card Modal */}
-            {showAddCard && (
+            {showCreateCard && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
                     <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 w-full max-w-sm">
                         <h2 className="text-white text-lg font-semibold mb-4">New Card</h2>
                         <input
                             autoFocus
-                            value={newCardTitle}
-                            onChange={(e) => setNewCardTitle(e.target.value)}
+                            value={pendingCardTitle}
+                            onChange={(e) => setPendingCardTitle(e.target.value)}
                             placeholder="Card title"
                             className="w-full bg-neutral-800 text-white placeholder-neutral-400 border border-neutral-700 rounded-lg px-3 py-2 mb-3 focus:outline-none focus:border-blue-500"
                         />
                         <textarea
-                            value={newCardDescription}
-                            onChange={(e) => setNewCardDescription(e.target.value)}
+                            value={pendingCardDescription}
+                            onChange={(e) => setPendingCardDescription(e.target.value)}
                             placeholder="Description (optional)"
                             rows={3}
                             className="w-full bg-neutral-800 text-white placeholder-neutral-400 border border-neutral-700 rounded-lg px-3 py-2 mb-4 focus:outline-none focus:border-blue-500"
                         />
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => setShowAddCard(false)} className="px-3 py-2 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700">Cancel</button>
+                            <button onClick={() => setShowCreateCard(false)} className="px-3 py-2 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700">Cancel</button>
                             <button onClick={handleConfirmAddCard} className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Create</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Audit Log (minimal) */}
             <div className="fixed bottom-4 right-4 w-full max-w-md bg-neutral-900/95 border border-neutral-800 rounded-xl shadow-xl p-4 backdrop-blur z-40">
                 <div className="flex items-center justify-between mb-2">
                     <h3 className="text-white font-semibold text-sm">Recent activity</h3>
-                    {auditLoading && (
+                    {isAuditLoading && (
                         <span className="text-xs text-neutral-400">Loading…</span>
                     )}
                 </div>
                 <div className="space-y-2 max-h-64 overflow-auto pr-1">
-                    {(auditLogs || []).map((log) => (
+                    {(recentEvents || []).map((log) => (
                         <div key={log.id} className="text-xs text-neutral-300 bg-neutral-800/60 border border-neutral-700 rounded-lg p-2">
                             <div className="flex items-center justify-between">
                                 <span className="font-medium text-white/90">
@@ -530,13 +548,13 @@ export default function KanbanBoard() {
                             </div>
                         </div>
                     ))}
-                    {!auditLoading && auditLogs.length === 0 && (
+                    {!isAuditLoading && recentEvents.length === 0 && (
                         <div className="text-xs text-neutral-500">No recent activity</div>
                     )}
                 </div>
                 <div className="mt-3 flex justify-end">
                     <button
-                        onClick={() => fetchAuditLogs(boardId)}
+                        onClick={() => loadRecentEvents(boardId)}
                         className="text-xs px-3 py-1 rounded-md bg-neutral-800 text-white border border-neutral-700 hover:bg-neutral-700"
                     >
                         Refresh

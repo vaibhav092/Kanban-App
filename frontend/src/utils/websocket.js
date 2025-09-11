@@ -27,12 +27,11 @@ class WebSocketService {
             this.ws = new WebSocket(this.getWebSocketUrl())
 
             this.ws.onopen = () => {
-                console.log('✅ WebSocket connected')
+                console.log('WebSocket connected')
                 this.connected = true
                 this.reconnectAttempts = 0
                 this.emit('connected')
 
-                // Flush queued messages
                 this.pending.forEach((msg) => this.ws.send(msg))
                 this.pending = []
 
@@ -45,12 +44,12 @@ class WebSocketService {
                     const message = JSON.parse(event.data)
                     this.handleMessage(message)
                 } catch (error) {
-                    console.error('❌ Error parsing WebSocket message:', error)
+                    console.error('Error parsing WebSocket message:', error)
                 }
             }
 
             this.ws.onclose = () => {
-                console.log('❌ WebSocket disconnected')
+                console.log('WebSocket disconnected')
                 this.connected = false
                 this.emit('disconnected')
                 this.stopHeartbeat()
@@ -61,7 +60,7 @@ class WebSocketService {
             }
 
             this.ws.onerror = (error) => {
-                console.error('⚠️ WebSocket error:', error)
+                console.error('WebSocket error:', error)
                 this.emit('error', error)
                 reject(error)
             }
@@ -70,8 +69,8 @@ class WebSocketService {
 
     reconnect() {
         this.reconnectAttempts++
-        const delay = Math.min(this.reconnectAttempts * 1000, 10000) 
-        console.log(`🔄 Reconnecting WebSocket in ${delay / 1000}s`)
+        const delay = Math.min(this.reconnectAttempts * 1000, 10000)
+        console.log(`Reconnecting WebSocket in ${delay / 1000}s`)
 
         setTimeout(() => this.connect(), delay)
     }
@@ -88,7 +87,7 @@ class WebSocketService {
     send(message) {
         const payload = JSON.stringify(message)
         if (!this.connected || this.ws.readyState !== WebSocket.OPEN) {
-            console.warn('⚠️ WS not ready, queueing message')
+            console.warn('WS not ready, queueing message')
             this.pending.push(payload)
             return false
         }
@@ -97,7 +96,7 @@ class WebSocketService {
             this.ws.send(payload)
             return true
         } catch (error) {
-            console.error('❌ Error sending message:', error)
+            console.error('Error sending message:', error)
             return false
         }
     }
@@ -142,7 +141,7 @@ class WebSocketService {
             if (this.connected) {
                 this.send({ type: 'ping' })
             }
-        }, 30000) 
+        }, 30000)
     }
 
     stopHeartbeat() {
@@ -200,5 +199,5 @@ class WebSocketService {
     }
 }
 
-const wsService = new WebSocketService()
-export default wsService
+const wsClient = new WebSocketService()
+export default wsClient

@@ -1,4 +1,3 @@
-// components/LogoutButton.jsx
 import React from 'react'
 import { useNavigate } from 'react-router'
 import { authAPI } from '../utils/api'

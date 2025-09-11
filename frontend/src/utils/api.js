@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const getBackendUrl = () => {
+const resolveApiBaseUrl = () => {
     if (typeof window !== 'undefined') {
         const host = window.location.hostname
         const protocol = window.location.protocol
@@ -9,9 +9,9 @@ const getBackendUrl = () => {
     return 'http://localhost:3000'
 }
 
-const API_BASE_URL = getBackendUrl()
+const API_BASE_URL = resolveApiBaseUrl()
 
-const api = axios.create({
+const httpClient = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true,
     headers: {
@@ -19,19 +19,15 @@ const api = axios.create({
     },
 })
 
-api.interceptors.request.use(
-    (config) => {
-        return config
-    },
-    (error) => {
-        return Promise.reject(error)
-    }
+httpClient.interceptors.request.use(
+    (config) => config,
+    (error) => Promise.reject(error)
 )
 
-let isRefreshing = false
-let refreshPromise = null
+let isTokenRefreshing = false
+let tokenRefreshPromise = null
 
-api.interceptors.response.use(
+httpClient.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config
@@ -44,21 +40,21 @@ api.interceptors.response.use(
         ) {
             originalRequest._retry = true
 
-            if (!isRefreshing) {
-                isRefreshing = true
-                refreshPromise = api
+            if (!isTokenRefreshing) {
+                isTokenRefreshing = true
+                tokenRefreshPromise = httpClient
                     .post('/api/auth/refresh')
                     .then(() => {
-                        isRefreshing = false
+                        isTokenRefreshing = false
                     })
                     .catch((refreshError) => {
-                        isRefreshing = false
+                        isTokenRefreshing = false
                         window.location.href = '/login'
                         throw refreshError
                     })
             }
 
-            return refreshPromise.then(() => api(originalRequest))
+            return tokenRefreshPromise.then(() => httpClient(originalRequest))
         }
 
         if (originalRequest.url === '/api/auth/refresh') {
@@ -70,21 +66,21 @@ api.interceptors.response.use(
 )
 
 export const authAPI = {
-    login: (credentials) => api.post('/api/auth/login', credentials),
-    register: (userData) => api.post('/api/auth/register', userData),
-    logout: () => api.post('/api/auth/logout'),
-    refresh: () => api.post('/api/auth/refresh'),
-    isLogin: () => api.get('/api/auth/isLogin'),
+    login: (credentials) => httpClient.post('/api/auth/login', credentials),
+    register: (userData) => httpClient.post('/api/auth/register', userData),
+    logout: () => httpClient.post('/api/auth/logout'),
+    refresh: () => httpClient.post('/api/auth/refresh'),
+    isLogin: () => httpClient.get('/api/auth/isLogin'),
 }
 
 export const kanbanAPI = {
-    AllgetBoards: () => api.get('/api/kanban/boards'),
-    getBoard: (boardId) => api.get(`/api/kanban/boards/${boardId}`),
-    createBoard: (boardData) => api.post('/api/kanban/boards', boardData),
+    AllgetBoards: () => httpClient.get('/api/kanban/boards'),
+    getBoard: (boardId) => httpClient.get(`/api/kanban/boards/${boardId}`),
+    createBoard: (boardData) => httpClient.post('/api/kanban/boards', boardData),
     createColumn: (boardId, name, order) =>
-        api.post(`/api/kanban/boards/${boardId}/columns`, { name, order }),
+        httpClient.post(`/api/kanban/boards/${boardId}/columns`, { name, order }),
     getAudit: (boardId, limit = 50) =>
-        api.get(`/api/kanban/boards/${boardId}/audit`, { params: { limit } }),
+        httpClient.get(`/api/kanban/boards/${boardId}/audit`, { params: { limit } }),
 }
 
-export default api
+export default httpClient

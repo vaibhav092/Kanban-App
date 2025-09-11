@@ -52,8 +52,6 @@ function LoginForm() {
             navigate('/')
         } catch (err) {
             console.error('API Error:', err)
-            console.log('Error status:', err.response?.status)
-            console.log('Error data:', err.response?.data)
 
             let errorMessage = 'Something went wrong. Please try again.'
 
@@ -98,7 +96,7 @@ function LoginForm() {
                         res?.data?.success
                 )
                 if (isMounted && alreadyLoggedIn) {
-                    // navigate('/');
+                    
                 }
             } catch {
                 // Ignore errors; user may not be logged in yet

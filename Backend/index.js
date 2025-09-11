@@ -11,7 +11,7 @@ import path from 'path'
 dotenv.config()
 
 const app = express()
-const port = 3000
+const serverPort = 3001
 const server = http.createServer(app)
 
 const __filename = fileURLToPath(import.meta.url)
@@ -50,14 +50,14 @@ app.use(express.static(path.join(__dirname, 'public')))
 
 app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'dist/ndex.html'))
-  })
+})
   
 
-server.listen(port, async () => {
+server.listen(serverPort, async () => {
     try {
         await connectDB()
         await SocketServer(server)
-        console.log(`Server is running on port ${port}`)
+        console.log(`Server is running on port ${serverPort}`)
         console.log(process.env.UPSTASH_REDIS_REST_URL)
     } catch (error) {
         console.log(error)
