@@ -49,7 +49,7 @@ app.use('/api/kanban', verifyToken, KanbanRoutes)
 app.use(express.static(path.join(__dirname, 'public')))
 
 app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'dist/ndex.html'))
+    res.sendFile(path.join(__dirname, 'public', 'dist/index.html'))
 })
   
 
